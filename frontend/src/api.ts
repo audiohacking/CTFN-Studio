@@ -67,7 +67,10 @@ export const api = {
         seed?: number,
         refAudioId?: string,
         styleInfluence: number = 100.0,
-        refAudioStartSec?: number
+        refAudioStartSec?: number,
+        negativeTags?: string,
+        refAudioAsNoise?: boolean,
+        refAudioNoiseStrength?: number
     ) => {
         const res = await axios.post(`${API_BASE_URL}/generate/music`, {
             prompt,
@@ -79,7 +82,11 @@ export const api = {
             seed,
             ref_audio_id: refAudioId,
             style_influence: styleInfluence,
-            ref_audio_start_sec: refAudioStartSec
+            ref_audio_start_sec: refAudioStartSec,
+            // Experimental: Advanced reference audio options
+            negative_tags: negativeTags,
+            ref_audio_as_noise: refAudioAsNoise,
+            ref_audio_noise_strength: refAudioNoiseStrength
         });
         return res.data;
     },

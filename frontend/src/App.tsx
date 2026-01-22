@@ -237,7 +237,11 @@ function App() {
         data.seed,  // Use custom seed from sidebar (or parent's seed if extending)
         data.refAudioId,
         data.styleInfluence,
-        data.refAudioStartSec
+        data.refAudioStartSec,
+        // Experimental: Advanced reference audio options
+        data.negativeTags,
+        data.refAudioAsNoise,
+        data.refAudioNoiseStrength
       );
       setQueuedJobs(prev => {
         const next = new Map(prev);

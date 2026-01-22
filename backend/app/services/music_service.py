@@ -296,19 +296,38 @@ class MusicService:
                                 print(f"[DEBUG] Passing ref_audio to pipeline: {ref_audio_path}, muq_segment_sec: {muq_segment_sec}, start_sec: {request.ref_audio_start_sec}", flush=True)
                             else:
                                 print(f"[DEBUG] Passing ref_audio to pipeline: {ref_audio_path}, muq_segment_sec: {muq_segment_sec} (using middle)", flush=True)
+
+                            # Experimental: ref audio as initial noise
+                            if request.ref_audio_as_noise:
+                                pipeline_inputs["ref_audio_as_noise"] = True
+                                print(f"[DEBUG] ref_audio_as_noise enabled with strength {request.ref_audio_noise_strength}", flush=True)
                         else:
                             print(f"[DEBUG] No ref_audio_path found", flush=True)
 
+                        # Experimental: negative tags (styles to avoid)
+                        if request.negative_tags:
+                            pipeline_inputs["negative_tags"] = request.negative_tags
+                            print(f"[DEBUG] Using negative_tags: {request.negative_tags}", flush=True)
+
+                        # Build pipeline kwargs
+                        pipeline_kwargs = {
+                            "max_audio_length_ms": request.duration_ms,
+                            "save_path": save_path,
+                            "topk": request.topk,
+                            "temperature": request.temperature,
+                            "cfg_scale": request.cfg_scale,
+                            "callback": _pipeline_callback,
+                            "abort_event": abort_event,
+                            "history_tokens": history_tokens,
+                        }
+
+                        # Add ref audio noise strength if using ref audio as noise
+                        if ref_audio_path and request.ref_audio_as_noise:
+                            pipeline_kwargs["ref_audio_noise_strength"] = request.ref_audio_noise_strength
+
                         output = self.pipeline(
                             pipeline_inputs,
-                            max_audio_length_ms=request.duration_ms,
-                            save_path=save_path,
-                            topk=request.topk,
-                            temperature=request.temperature,
-                            cfg_scale=request.cfg_scale,
-                            callback=_pipeline_callback,  # Pass our new callback
-                            abort_event=abort_event,      # Pass cancellation signal
-                            history_tokens=history_tokens, # Phase 9
+                            **pipeline_kwargs
                         )
                         
                         # Save tokens if returned (Phase 9)

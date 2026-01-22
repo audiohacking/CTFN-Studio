@@ -41,6 +41,10 @@ export interface CompositionData {
     styleInfluence?: number;
     refAudioStartSec?: number;
     seed?: number;
+    // Experimental: Advanced reference audio options
+    negativeTags?: string;
+    refAudioAsNoise?: boolean;
+    refAudioNoiseStrength?: number;
 }
 
 export const ComposerSidebar: React.FC<ComposerSidebarProps> = ({
@@ -80,6 +84,11 @@ export const ComposerSidebar: React.FC<ComposerSidebarProps> = ({
     const [showRegionModal, setShowRegionModal] = useState(false);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
     const refAudioPlayerRef = React.useRef<HTMLAudioElement>(null);
+
+    // Experimental: Advanced reference audio options
+    const [negativeTags, setNegativeTags] = useState('');
+    const [refAudioAsNoise, setRefAudioAsNoise] = useState(false);
+    const [refAudioNoiseStrength, setRefAudioNoiseStrength] = useState(0.5);
 
     const handleRefAudioLoadedMetadata = () => {
         if (refAudioPlayerRef.current) {
@@ -295,7 +304,11 @@ export const ComposerSidebar: React.FC<ComposerSidebarProps> = ({
                 refAudioId: refAudio?.id,
                 styleInfluence: refAudio ? styleInfluence : undefined,
                 refAudioStartSec: refAudio ? (refAudioStartSec ?? undefined) : undefined,
-                seed: seedValue
+                seed: seedValue,
+                // Experimental: Advanced reference audio options
+                negativeTags: negativeTags.trim() || undefined,
+                refAudioAsNoise: refAudio && refAudioAsNoise ? true : undefined,
+                refAudioNoiseStrength: refAudio && refAudioAsNoise ? refAudioNoiseStrength : undefined,
             });
         }
         // Reset count after generating
@@ -686,6 +699,56 @@ export const ComposerSidebar: React.FC<ComposerSidebarProps> = ({
                                         </span>
                                     </button>
                                 )}
+
+                                {/* Experimental: Use as Initial Noise */}
+                                <div className={`pt-2 border-t ${darkMode ? 'border-[#333]' : 'border-slate-200'}`}>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={refAudioAsNoise}
+                                            onChange={(e) => setRefAudioAsNoise(e.target.checked)}
+                                            className="w-3.5 h-3.5 rounded accent-[#1DB954]"
+                                        />
+                                        <span className={`text-[10px] ${darkMode ? 'text-[#b3b3b3]' : 'text-slate-600'}`}>
+                                            Use as Initial Noise
+                                            <span className={`ml-1 px-1 py-0.5 rounded text-[8px] ${darkMode ? 'bg-[#333] text-[#888]' : 'bg-slate-100 text-slate-400'}`}>
+                                                Experimental
+                                            </span>
+                                        </span>
+                                    </label>
+
+                                    {/* Noise Strength Slider - only visible when checkbox is checked */}
+                                    {refAudioAsNoise && (
+                                        <div className="mt-2 space-y-1">
+                                            <div className="flex justify-between items-center">
+                                                <span className={`text-[10px] ${darkMode ? 'text-[#b3b3b3]' : 'text-slate-600'}`}>
+                                                    Noise Strength
+                                                </span>
+                                                <span className={`text-[10px] font-mono ${darkMode ? 'text-[#1DB954]' : 'text-cyan-600'}`}>
+                                                    {Math.round(refAudioNoiseStrength * 100)}%
+                                                </span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max="1"
+                                                step="0.05"
+                                                value={refAudioNoiseStrength}
+                                                onChange={(e) => setRefAudioNoiseStrength(parseFloat(e.target.value))}
+                                                className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-[#1DB954]"
+                                                style={{
+                                                    background: darkMode
+                                                        ? `linear-gradient(to right, #1DB954 0%, #1DB954 ${refAudioNoiseStrength * 100}%, #404040 ${refAudioNoiseStrength * 100}%, #404040 100%)`
+                                                        : `linear-gradient(to right, #06b6d4 0%, #06b6d4 ${refAudioNoiseStrength * 100}%, #e2e8f0 ${refAudioNoiseStrength * 100}%, #e2e8f0 100%)`
+                                                }}
+                                            />
+                                            <div className="flex justify-between text-[9px] opacity-50">
+                                                <span>Random</span>
+                                                <span>Full Ref</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         ) : (
                             <button
@@ -821,6 +884,30 @@ export const ComposerSidebar: React.FC<ComposerSidebarProps> = ({
                                             )}
                                             <p className={`text-[10px] ${darkMode ? 'text-[#505050]' : 'text-slate-400'}`}>
                                                 Use same seed for reproducible results
+                                            </p>
+                                        </div>
+
+                                        {/* Negative Tags (Experimental) */}
+                                        <div className="space-y-1.5 pt-2">
+                                            <label className={`text-xs font-medium flex items-center gap-1.5 ${darkMode ? 'text-[#606060]' : 'text-slate-400'}`}>
+                                                Negative Tags
+                                                <span className={`px-1 py-0.5 rounded text-[8px] ${darkMode ? 'bg-[#333] text-[#888]' : 'bg-slate-100 text-slate-400'}`}>
+                                                    Experimental
+                                                </span>
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={negativeTags}
+                                                onChange={(e) => setNegativeTags(e.target.value)}
+                                                placeholder="noisy, distorted, low quality..."
+                                                className={`w-full text-xs px-2 py-1.5 rounded-md border transition-colors ${
+                                                    darkMode
+                                                        ? 'bg-[#282828] border-[#404040] text-white placeholder:text-[#606060] focus:border-[#1DB954]'
+                                                        : 'bg-white border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-cyan-500'
+                                                } focus:outline-none`}
+                                            />
+                                            <p className={`text-[10px] ${darkMode ? 'text-[#505050]' : 'text-slate-400'}`}>
+                                                Styles to avoid in generation (CFG negative guidance)
                                             </p>
                                         </div>
                                     </div>

@@ -38,6 +38,10 @@ class GenerationRequest(SQLModel):
     ref_audio_id: Optional[str] = None # Reference audio file ID for style conditioning
     style_influence: float = 100.0 # Style influence (0-100%, controls muq_segment_sec)
     ref_audio_start_sec: Optional[float] = None # Start time in seconds for reference audio segment (None = use middle)
+    # Experimental: Advanced reference audio options
+    negative_tags: Optional[str] = None # Negative prompt - styles to avoid (e.g. "noisy, distorted, low quality")
+    ref_audio_as_noise: bool = False # Use reference audio as initial noise for generation
+    ref_audio_noise_strength: float = 0.5 # Blend strength for ref audio noise (0.0-1.0)
 
 class LyricsRequest(SQLModel):
     model_config = {"protected_namespaces": ()}
