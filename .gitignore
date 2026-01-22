@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+.env
+
+# Node
+node_modules/
+dist/
+.npm
+*.log
+
+# Database
+*.db
+!jobs.db
+
+# Generated content
+backend/generated_audio/*
+!backend/generated_audio/.gitkeep
+backend/ref_audio/*
+!backend/ref_audio/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Build artifacts
+*.egg-info/
+build/
+*.egg
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Generated tokens
+backend/generated_tokens/*
+!backend/generated_tokens/.gitkeep

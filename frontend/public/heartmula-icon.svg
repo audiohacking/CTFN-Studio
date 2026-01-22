@@ -1,0 +1,24 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle with gradient -->
+  <circle cx="24" cy="24" r="24" fill="url(#favicon-gradient)"/>
+
+  <!-- Heart shape with sound waves -->
+  <g transform="translate(8, 10)">
+    <!-- Heart path -->
+    <path d="M16 28C16 28 4 20 4 11C4 6.5 7.5 3 12 3C14.5 3 16.5 4 16 6C15.5 4 17.5 3 20 3C24.5 3 28 6.5 28 11C28 20 16 28 16 28Z" fill="white" fill-opacity="0.95"/>
+
+    <!-- Sound wave bars -->
+    <rect x="10" y="10" width="2.5" height="8" rx="1.25" fill="#6366f1"/>
+    <rect x="14.5" y="7" width="2.5" height="14" rx="1.25" fill="#8b5cf6"/>
+    <rect x="19" y="9" width="2.5" height="10" rx="1.25" fill="#a855f7"/>
+  </g>
+
+  <!-- Gradient definition -->
+  <defs>
+    <linearGradient id="favicon-gradient" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#06b6d4"/>
+      <stop offset="50%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#ec4899"/>
+    </linearGradient>
+  </defs>
+</svg>
