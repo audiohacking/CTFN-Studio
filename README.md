@@ -92,7 +92,9 @@
 
 - **Python** 3.10 or higher
 - **Node.js** 18 or higher
-- **CUDA GPU** with 24GB+ VRAM (recommended)
+- **CUDA GPU(s)**:
+  - Multi-GPU: 2x 12GB+ GPUs (e.g., 2x RTX 3060/4070)
+  - Single GPU: 24GB+ (e.g., RTX 3090/4090) or 16GB with lazy loading
 - **Git** for cloning the repository
 
 ## Installation
@@ -182,14 +184,21 @@ OLLAMA_HOST=http://localhost:11434
 
 HeartMuLa Studio automatically detects available GPUs and distributes the model:
 
-| Setup | Configuration |
-|-------|---------------|
-| **Single GPU (24GB+)** | Works out of the box with lazy loading |
-| **Multi-GPU** | HeartMuLa on larger GPU, HeartCodec on smaller GPU |
+| Setup | VRAM Required | Configuration |
+|-------|---------------|---------------|
+| **Multi-GPU (Recommended)** | 12GB + 12GB | HeartMuLa on GPU 0, HeartCodec on GPU 1 |
+| **Single GPU (High VRAM)** | 24GB+ | Both models on same GPU |
+| **Single GPU (Low VRAM)** | 16GB | Lazy loading - codec on CPU, loaded on demand |
 
-For multi-GPU, set `CUDA_VISIBLE_DEVICES=0,1` when starting the backend. The backend will automatically place HeartMuLa (~10GB) on the larger GPU and HeartCodec (~6GB) on the smaller one.
+**Multi-GPU Setup (Best Performance):**
+```bash
+CUDA_VISIBLE_DEVICES=0,1 python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
+```
 
-For better memory management, add:
+**Single GPU / Low VRAM Setup:**
+The backend automatically uses lazy loading when only one GPU is detected. HeartCodec stays on CPU and is loaded to GPU only during audio decoding, then released.
+
+**Memory Optimization:**
 ```bash
 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 ```
