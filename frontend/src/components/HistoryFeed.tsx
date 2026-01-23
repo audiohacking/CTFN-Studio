@@ -484,9 +484,9 @@ export const HistoryFeed: React.FC<HistoryFeedProps> = ({ history, currentJobId,
                                     ? 'bg-[#1DB954]'
                                     : 'bg-gradient-to-r from-cyan-500 to-purple-500'
                             }`}
-                            initial={{ width: '0%' }}
+                            style={{ width: `${Math.min(jobProgress.get(job.id)?.progress || 0, 100)}%` }}
                             animate={{ width: `${Math.min(jobProgress.get(job.id)?.progress || 0, 100)}%` }}
-                            transition={{ duration: 0.3, ease: 'easeOut' }}
+                            transition={{ duration: 0.5, ease: 'linear' }}
                         />
                     </div>
                     <div className="flex items-center justify-between mt-1.5">
