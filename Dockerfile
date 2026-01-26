@@ -23,7 +23,7 @@ RUN npm run build
 # =============================================================================
 # Stage 2: Final Image with Python + CUDA
 # =============================================================================
-FROM nvidia/cuda:12.1.0-cudnn8-runtime-ubuntu22.04
+FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu22.04
 
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -32,10 +32,13 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3.11 \
     python3.11-venv \
+    python3.11-dev \
     python3-pip \
     git \
     ffmpeg \
     libsndfile1 \
+    gcc \
+    g++ \
     && rm -rf /var/lib/apt/lists/* \
     && ln -sf /usr/bin/python3.11 /usr/bin/python3 \
     && ln -sf /usr/bin/python3.11 /usr/bin/python
@@ -71,7 +74,8 @@ ENV PYTHONUNBUFFERED=1 \
     PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
     HEARTMULA_4BIT=auto \
     HEARTMULA_SEQUENTIAL_OFFLOAD=auto \
-    HF_HOME=/app/backend/models
+    HF_HOME=/app/backend/models \
+    TORCHINDUCTOR_CACHE_DIR=/app/backend/models/.torch_cache
 
 # Expose port
 EXPOSE 8000
