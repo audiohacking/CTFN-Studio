@@ -755,7 +755,11 @@ class MusicService:
                 "torch_compile_mode": "default",
                 # LLM Provider settings
                 "ollama_host": "",
-                "openrouter_api_key": ""
+                "openrouter_api_key": "",
+                # Custom API settings
+                "custom_api_base_url": "",
+                "custom_api_key": "",
+                "custom_api_model": ""
             }
             # Load persisted settings from disk (overrides defaults)
             cls._instance._load_settings()
@@ -806,6 +810,13 @@ class MusicService:
                         LLMService.update_settings(ollama_host=saved["ollama_host"])
                     if "openrouter_api_key" in saved and saved["openrouter_api_key"]:
                         LLMService.update_settings(openrouter_api_key=saved["openrouter_api_key"])
+                    # Apply Custom API settings
+                    if "custom_api_base_url" in saved:
+                        LLMService.update_settings(custom_api_base_url=saved["custom_api_base_url"])
+                    if "custom_api_key" in saved:
+                        LLMService.update_settings(custom_api_key=saved["custom_api_key"])
+                    if "custom_api_model" in saved:
+                        LLMService.update_settings(custom_api_model=saved["custom_api_model"])
 
                     logger.info(f"[Settings] Loaded from {SETTINGS_FILE}: {self.current_settings}")
         except Exception as e:

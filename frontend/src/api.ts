@@ -21,7 +21,7 @@ export interface Job {
 export interface LLMModel {
     id: string;
     name: string;
-    provider: 'ollama' | 'openrouter';
+    provider: 'ollama' | 'openrouter' | 'custom';
 }
 
 export interface Playlist {
@@ -77,6 +77,10 @@ export interface LLMSettings {
     openrouter_api_key: string;
     ollama_available: boolean;
     openrouter_available: boolean;
+    custom_api_base_url: string;
+    custom_api_key: string;
+    custom_api_model: string;
+    custom_api_available: boolean;
 }
 
 export const api = {
@@ -352,7 +356,13 @@ export const api = {
         return res.data;
     },
 
-    updateLLMSettings: async (settings: { ollama_host?: string; openrouter_api_key?: string }): Promise<LLMSettings> => {
+    updateLLMSettings: async (settings: {
+        ollama_host?: string;
+        openrouter_api_key?: string;
+        custom_api_base_url?: string;
+        custom_api_key?: string;
+        custom_api_model?: string;
+    }): Promise<LLMSettings> => {
         const res = await axios.put(`${API_BASE_URL}/settings/llm`, settings);
         return res.data;
     }

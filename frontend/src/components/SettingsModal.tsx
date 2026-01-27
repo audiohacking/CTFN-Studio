@@ -13,7 +13,13 @@ interface SettingsModalProps {
     onReload: (settings: GPUSettings) => Promise<void>;
     startupStatus: StartupStatus | null;
     llmSettings: LLMSettings | null;
-    onSaveLLM: (settings: { ollama_host?: string; openrouter_api_key?: string }) => Promise<void>;
+    onSaveLLM: (settings: {
+        ollama_host?: string;
+        openrouter_api_key?: string;
+        custom_api_base_url?: string;
+        custom_api_key?: string;
+        custom_api_model?: string;
+    }) => Promise<void>;
 }
 
 export function SettingsModal({
@@ -37,6 +43,10 @@ export function SettingsModal({
     const [ollamaPreset, setOllamaPreset] = useState('host'); // 'host', 'localhost', 'custom'
     const [customOllamaUrl, setCustomOllamaUrl] = useState('');
     const [openrouterKey, setOpenrouterKey] = useState('');
+    // Custom API state
+    const [customApiBaseUrl, setCustomApiBaseUrl] = useState('');
+    const [customApiKey, setCustomApiKey] = useState('');
+    const [customApiModel, setCustomApiModel] = useState('');
 
     // Ollama presets
     const OLLAMA_PRESETS = {
@@ -78,6 +88,14 @@ export function SettingsModal({
             if (!openrouterKey) {
                 setOpenrouterKey('');
             }
+
+            // Load Custom API settings
+            setCustomApiBaseUrl(llmSettings.custom_api_base_url || '');
+            setCustomApiModel(llmSettings.custom_api_model || '');
+            // Don't load masked key - leave empty for new input
+            if (!customApiKey) {
+                setCustomApiKey('');
+            }
         }
     }, [llmSettings, isOpen]);
 
@@ -96,9 +114,13 @@ export function SettingsModal({
             const effectiveUrl = ollamaPreset === 'custom' ? customOllamaUrl : OLLAMA_PRESETS[ollamaPreset as keyof typeof OLLAMA_PRESETS].url;
             const hostChanged = effectiveUrl !== (llmSettings.ollama_host || OLLAMA_PRESETS.host.url);
             const keyChanged = openrouterKey !== '' && openrouterKey !== llmSettings.openrouter_api_key;
-            setHasLLMChanges(hostChanged || keyChanged);
+            // Track Custom API changes
+            const customBaseUrlChanged = customApiBaseUrl !== (llmSettings.custom_api_base_url || '');
+            const customModelChanged = customApiModel !== (llmSettings.custom_api_model || '');
+            const customKeyChanged = customApiKey !== '' && customApiKey !== llmSettings.custom_api_key;
+            setHasLLMChanges(hostChanged || keyChanged || customBaseUrlChanged || customModelChanged || customKeyChanged);
         }
-    }, [ollamaPreset, customOllamaUrl, openrouterKey, llmSettings]);
+    }, [ollamaPreset, customOllamaUrl, openrouterKey, customApiBaseUrl, customApiKey, customApiModel, llmSettings]);
 
     // Check if currently reloading
     const isCurrentlyReloading = startupStatus?.status === 'loading' || startupStatus?.status === 'downloading';
@@ -117,7 +139,13 @@ export function SettingsModal({
     const handleSaveLLM = async () => {
         setIsSavingLLM(true);
         try {
-            const updates: { ollama_host?: string; openrouter_api_key?: string } = {};
+            const updates: {
+                ollama_host?: string;
+                openrouter_api_key?: string;
+                custom_api_base_url?: string;
+                custom_api_key?: string;
+                custom_api_model?: string;
+            } = {};
 
             // Get effective URL from preset or custom
             const effectiveUrl = ollamaPreset === 'custom' ? customOllamaUrl : OLLAMA_PRESETS[ollamaPreset as keyof typeof OLLAMA_PRESETS].url;
@@ -126,6 +154,16 @@ export function SettingsModal({
             }
             if (openrouterKey && openrouterKey !== llmSettings?.openrouter_api_key) {
                 updates.openrouter_api_key = openrouterKey;
+            }
+            // Custom API updates
+            if (customApiBaseUrl !== (llmSettings?.custom_api_base_url || '')) {
+                updates.custom_api_base_url = customApiBaseUrl;
+            }
+            if (customApiModel !== (llmSettings?.custom_api_model || '')) {
+                updates.custom_api_model = customApiModel;
+            }
+            if (customApiKey && customApiKey !== llmSettings?.custom_api_key) {
+                updates.custom_api_key = customApiKey;
             }
             await onSaveLLM(updates);
             setSaveLLMSuccess(true);
@@ -483,6 +521,62 @@ export function SettingsModal({
                                         <p className={`text-xs mt-1 ${darkMode ? 'text-[#6a6a6a]' : 'text-slate-400'}`}>
                                             Get your API key from <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className={darkMode ? 'text-[#1DB954] hover:underline' : 'text-cyan-500 hover:underline'}>openrouter.ai/keys</a>
                                         </p>
+                                    </div>
+
+                                    {/* Custom API Section */}
+                                    <div className={`mt-4 pt-4 border-t ${darkMode ? 'border-[#383838]' : 'border-slate-200'}`}>
+                                        <label className={`${labelClass} mb-2`}>
+                                            <div className="flex items-center gap-2">
+                                                Custom API (OpenAI Compatible)
+                                                {llmSettings?.custom_api_available ? (
+                                                    <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                                                ) : (
+                                                    <span className={`text-xs ${darkMode ? 'text-[#6a6a6a]' : 'text-slate-400'}`}>(not configured)</span>
+                                                )}
+                                            </div>
+                                        </label>
+                                        <p className={`text-xs mb-3 ${darkMode ? 'text-[#b3b3b3]' : 'text-slate-500'}`}>
+                                            Connect to vLLM, LocalAI, LM Studio, or any OpenAI-compatible endpoint
+                                        </p>
+
+                                        {/* Base URL */}
+                                        <div className="mb-3">
+                                            <label className={`text-xs ${darkMode ? 'text-[#b3b3b3]' : 'text-slate-500'}`}>Base URL</label>
+                                            <input
+                                                type="text"
+                                                value={customApiBaseUrl}
+                                                onChange={(e) => setCustomApiBaseUrl(e.target.value)}
+                                                placeholder="http://localhost:8080/v1"
+                                                className={selectClass}
+                                            />
+                                        </div>
+
+                                        {/* Model Name */}
+                                        <div className="mb-3">
+                                            <label className={`text-xs ${darkMode ? 'text-[#b3b3b3]' : 'text-slate-500'}`}>Model Name</label>
+                                            <input
+                                                type="text"
+                                                value={customApiModel}
+                                                onChange={(e) => setCustomApiModel(e.target.value)}
+                                                placeholder="llama-3.1-8b"
+                                                className={selectClass}
+                                            />
+                                        </div>
+
+                                        {/* API Key (Optional) */}
+                                        <div>
+                                            <label className={`text-xs ${darkMode ? 'text-[#b3b3b3]' : 'text-slate-500'}`}>API Key (optional)</label>
+                                            <input
+                                                type="password"
+                                                value={customApiKey}
+                                                onChange={(e) => setCustomApiKey(e.target.value)}
+                                                placeholder={llmSettings?.custom_api_key || 'Leave empty if not required'}
+                                                className={selectClass}
+                                            />
+                                            <p className={`text-xs mt-1 ${darkMode ? 'text-[#6a6a6a]' : 'text-slate-400'}`}>
+                                                Only needed if your API requires authentication
+                                            </p>
+                                        </div>
                                     </div>
 
                                     {/* LLM Save Button */}

@@ -651,15 +651,22 @@ async def reload_models(settings: GPUSettingsRequest, background_tasks: Backgrou
 def get_llm_settings():
     """Get current LLM provider settings."""
     settings = LLMService.get_settings()
-    # Mask API key for security (show only last 4 chars)
-    api_key = settings.get("openrouter_api_key", "")
-    masked_key = f"***{api_key[-4:]}" if api_key and len(api_key) > 4 else ""
+    # Mask API keys for security (show only last 4 chars)
+    openrouter_key = settings.get("openrouter_api_key", "")
+    masked_openrouter_key = f"***{openrouter_key[-4:]}" if openrouter_key and len(openrouter_key) > 4 else ""
+
+    custom_api_key = settings.get("custom_api_key", "")
+    masked_custom_key = f"***{custom_api_key[-4:]}" if custom_api_key and len(custom_api_key) > 4 else ""
 
     return {
         "ollama_host": settings.get("ollama_host", ""),
-        "openrouter_api_key": masked_key,
+        "openrouter_api_key": masked_openrouter_key,
         "ollama_available": LLMService.check_ollama_available(),
-        "openrouter_available": LLMService.check_openrouter_available()
+        "openrouter_available": LLMService.check_openrouter_available(),
+        "custom_api_base_url": settings.get("custom_api_base_url", ""),
+        "custom_api_key": masked_custom_key,
+        "custom_api_model": settings.get("custom_api_model", ""),
+        "custom_api_available": LLMService.check_custom_api_available()
     }
 
 
@@ -675,19 +682,38 @@ def update_llm_settings(settings: LLMSettingsRequest):
         LLMService.update_settings(openrouter_api_key=settings.openrouter_api_key)
         music_service.current_settings["openrouter_api_key"] = settings.openrouter_api_key
 
+    if settings.custom_api_base_url is not None:
+        LLMService.update_settings(custom_api_base_url=settings.custom_api_base_url)
+        music_service.current_settings["custom_api_base_url"] = settings.custom_api_base_url
+
+    if settings.custom_api_key is not None:
+        LLMService.update_settings(custom_api_key=settings.custom_api_key)
+        music_service.current_settings["custom_api_key"] = settings.custom_api_key
+
+    if settings.custom_api_model is not None:
+        LLMService.update_settings(custom_api_model=settings.custom_api_model)
+        music_service.current_settings["custom_api_model"] = settings.custom_api_model
+
     # Save to persistent storage
     music_service._save_settings()
 
     # Return updated settings
     current = LLMService.get_settings()
-    api_key = current.get("openrouter_api_key", "")
-    masked_key = f"***{api_key[-4:]}" if api_key and len(api_key) > 4 else ""
+    openrouter_key = current.get("openrouter_api_key", "")
+    masked_openrouter_key = f"***{openrouter_key[-4:]}" if openrouter_key and len(openrouter_key) > 4 else ""
+
+    custom_api_key = current.get("custom_api_key", "")
+    masked_custom_key = f"***{custom_api_key[-4:]}" if custom_api_key and len(custom_api_key) > 4 else ""
 
     return {
         "ollama_host": current.get("ollama_host", ""),
-        "openrouter_api_key": masked_key,
+        "openrouter_api_key": masked_openrouter_key,
         "ollama_available": LLMService.check_ollama_available(),
-        "openrouter_available": LLMService.check_openrouter_available()
+        "openrouter_available": LLMService.check_openrouter_available(),
+        "custom_api_base_url": current.get("custom_api_base_url", ""),
+        "custom_api_key": masked_custom_key,
+        "custom_api_model": current.get("custom_api_model", ""),
+        "custom_api_available": LLMService.check_custom_api_available()
     }
 
 

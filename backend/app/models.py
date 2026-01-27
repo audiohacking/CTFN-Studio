@@ -155,6 +155,9 @@ class ModelReloadResponse(SQLModel):
 class LLMSettingsRequest(SQLModel):
     ollama_host: Optional[str] = None
     openrouter_api_key: Optional[str] = None
+    custom_api_base_url: Optional[str] = None
+    custom_api_key: Optional[str] = None
+    custom_api_model: Optional[str] = None
 
 
 class LLMSettingsResponse(SQLModel):
@@ -162,3 +165,7 @@ class LLMSettingsResponse(SQLModel):
     openrouter_api_key: str  # Will be masked in response
     ollama_available: bool
     openrouter_available: bool
+    custom_api_base_url: str
+    custom_api_key: str  # Will be masked in response
+    custom_api_model: str
+    custom_api_available: bool
