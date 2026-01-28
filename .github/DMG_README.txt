@@ -21,8 +21,15 @@ The app will automatically download AI models (~5GB) from
 HuggingFace on first launch. This may take 10-30 minutes
 depending on your internet connection.
 
-Models are saved to:
-~/Library/Application Support/HeartMuLa/models/
+All data is stored in your user Library folder:
+~/Library/Application Support/HeartMuLa/
+  ├── models/              (AI models, ~5GB)
+  ├── generated_audio/     (Your generated music)
+  ├── ref_audio/           (Reference audio uploads)
+  └── jobs.db              (Song history database)
+
+Logs are stored in:
+~/Library/Logs/HeartMuLa/
 
 💻 SYSTEM REQUIREMENTS
 ───────────────────────────────────────────────────────────
@@ -70,6 +77,11 @@ Models not downloading?
 Slow generation?
   → First generation compiles kernels (1-2 min)
   → Subsequent generations are faster
+
+Where is my data stored?
+  → All data: ~/Library/Application Support/HeartMuLa/
+  → Generated songs: ~/Library/Application Support/HeartMuLa/generated_audio/
+  → The app bundle itself is read-only and contains no user data
 
 Still having issues?
   → Open an issue on GitHub

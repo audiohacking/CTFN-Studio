@@ -25,7 +25,7 @@ def setup_environment():
         # Running as script
         app_dir = Path(__file__).parent
     
-    # Set up paths for the app
+    # Set up paths for the app - ALL data goes to user's Library directory
     home_dir = Path.home()
     app_support_dir = home_dir / "Library" / "Application Support" / "HeartMuLa"
     models_dir = app_support_dir / "models"
@@ -37,38 +37,24 @@ def setup_environment():
     for directory in [app_support_dir, models_dir, generated_audio_dir, ref_audio_dir, logs_dir]:
         directory.mkdir(parents=True, exist_ok=True)
     
-    # Create backend directory structure in app bundle if it doesn't exist
-    backend_dir = app_dir / "backend"
-    backend_dir.mkdir(exist_ok=True)
-    
-    # Create symlinks from backend directories to user directories
-    backend_generated_audio = backend_dir / "generated_audio"
-    backend_ref_audio = backend_dir / "ref_audio"
-    backend_models = backend_dir / "models"
-    
-    # Remove existing symlinks/directories/files and create new symlinks
-    for link_path, target_path in [
-        (backend_generated_audio, generated_audio_dir),
-        (backend_ref_audio, ref_audio_dir),
-        (backend_models, models_dir)
-    ]:
-        if link_path.exists() or link_path.is_symlink():
-            if link_path.is_symlink():
-                link_path.unlink()
-            elif link_path.is_dir():
-                shutil.rmtree(link_path)
-            else:
-                # Handle regular files
-                link_path.unlink()
-        link_path.symlink_to(target_path)
-    
-    # Set environment variables
+    # IMPORTANT: Set environment variables BEFORE importing backend modules
+    # This ensures all paths point to the user's Library directory, NOT the app bundle
     os.environ["HEARTMULA_MODEL_DIR"] = str(models_dir)
     os.environ["HEARTMULA_DB_PATH"] = str(app_support_dir / "jobs.db")
+    os.environ["HEARTMULA_GENERATED_AUDIO_DIR"] = str(generated_audio_dir)
+    os.environ["HEARTMULA_REF_AUDIO_DIR"] = str(ref_audio_dir)
     os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"  # Enable Metal Performance Shaders
     
-    # Change working directory to app bundle to ensure relative paths work
+    # Change working directory to app bundle for frontend serving
+    # Backend will use absolute paths from environment variables
     os.chdir(app_dir)
+    
+    print(f"Data directories configured:")
+    print(f"  Models: {models_dir}")
+    print(f"  Generated Audio: {generated_audio_dir}")
+    print(f"  Reference Audio: {ref_audio_dir}")
+    print(f"  Database: {app_support_dir / 'jobs.db'}")
+    print(f"  Logs: {logs_dir}")
     
     return app_dir, logs_dir
 

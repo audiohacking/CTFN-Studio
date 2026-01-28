@@ -93,6 +93,33 @@ Native ARM64 support with Metal acceleration provides best performance.
 
 Compatible with Intel Macs that have Metal-capable GPUs (2012 or later).
 
+## Data Storage
+
+**IMPORTANT**: The macOS app stores ALL data in the user's Library directory, NOT in the app bundle:
+
+```
+~/Library/Application Support/HeartMuLa/
+├── models/              # AI models (~5GB, auto-downloaded)
+├── generated_audio/     # Generated music files
+├── ref_audio/           # Uploaded reference audio
+└── jobs.db              # Song history database
+
+~/Library/Logs/HeartMuLa/
+└── (application logs)
+```
+
+The launcher (`launcher.py`) sets environment variables to ensure all data writes go to the user directory:
+- `HEARTMULA_MODEL_DIR` → models directory
+- `HEARTMULA_GENERATED_AUDIO_DIR` → generated audio directory
+- `HEARTMULA_REF_AUDIO_DIR` → reference audio directory
+- `HEARTMULA_DB_PATH` → database path
+
+This approach ensures:
+- The app bundle remains read-only (as required by code signing)
+- User data persists across app updates
+- Users can easily find and manage their generated music
+- Standard macOS app behavior (data in Library folder)
+
 ## Code Signing
 
 The build includes ad-hoc code signing by default to prevent "damaged app" warnings.
