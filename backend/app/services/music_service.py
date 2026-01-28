@@ -83,6 +83,16 @@ _default_db_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(_
 SETTINGS_FILE = os.path.join(os.environ.get("HEARTMULA_DB_PATH", _default_db_dir).replace("jobs.db", ""), "settings.json")
 
 
+def is_mps_available() -> bool:
+    """
+    Check if Apple Metal Performance Shaders (MPS) is available.
+    
+    Returns:
+        bool: True if MPS is available, False otherwise
+    """
+    return hasattr(torch.backends, 'mps') and torch.backends.mps.is_available()
+
+
 def detect_optimal_gpu_config() -> dict:
     """
     Auto-detect the optimal GPU configuration based on available VRAM.
@@ -111,7 +121,7 @@ def detect_optimal_gpu_config() -> dict:
         result["device_type"] = "cuda"
         # Continue with existing CUDA logic below
     # Check for Apple Metal (MPS) on macOS
-    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+    elif is_mps_available():
         result["device_type"] = "mps"
         result["num_gpus"] = 1
         result["use_quantization"] = False  # MPS works better with full precision
@@ -463,7 +473,7 @@ def configure_flash_attention_for_gpu(device_id: int):
     - AMD ROCm: Conservatively disables Flash Attention (compatibility varies)
     """
     # Skip if MPS is being used
-    if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available() and not torch.cuda.is_available():
+    if is_mps_available() and not torch.cuda.is_available():
         logger.info("[GPU Config] Apple Metal (MPS) device - skipping Flash Attention configuration")
         return
     
@@ -700,7 +710,7 @@ def patch_pipeline_with_callback(pipeline: HeartMuLaGenPipeline, sequential_offl
                 torch.cuda.empty_cache()
                 torch.cuda.synchronize()
                 print(f"[Sequential Offload] VRAM after offload: {torch.cuda.memory_allocated()/1024**3:.2f}GB", flush=True)
-            elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            elif is_mps_available():
                 torch.mps.empty_cache()
         else:
             pipeline._unload()
@@ -737,7 +747,7 @@ def patch_pipeline_with_callback(pipeline: HeartMuLaGenPipeline, sequential_offl
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
                 torch.cuda.synchronize()
-            elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            elif is_mps_available():
                 torch.mps.empty_cache()
 
         if pipeline._sequential_offload:
@@ -767,7 +777,7 @@ def cleanup_gpu_memory():
                 torch.cuda.empty_cache()
                 torch.cuda.synchronize()
         logger.info("GPU memory cleaned up")
-    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+    elif is_mps_available():
         torch.mps.empty_cache()
         logger.info("MPS memory cleaned up")
 
@@ -1080,7 +1090,7 @@ class MusicService:
                 with torch.cuda.device(i):
                     torch.cuda.empty_cache()
                     torch.cuda.synchronize()
-        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+        elif is_mps_available():
             # MPS memory cleanup
             torch.mps.empty_cache()
 
@@ -1090,7 +1100,7 @@ class MusicService:
         """Get GPU hardware information."""
         result = {
             "cuda_available": torch.cuda.is_available(),
-            "mps_available": hasattr(torch.backends, 'mps') and torch.backends.mps.is_available(),
+            "mps_available": is_mps_available(),
             "num_gpus": 0,
             "gpus": [],
             "total_vram_gb": 0
@@ -1227,6 +1237,11 @@ class MusicService:
             print("[Apple Metal] Using MPS device for inference", flush=True)
             print("[Apple Metal] Note: MPS uses unified memory architecture", flush=True)
             
+            # Check if quantization is manually enabled
+            if use_quantization:
+                logger.warning("4-bit quantization is not supported on MPS. Using full precision instead.")
+                print("[Apple Metal] WARNING: 4-bit quantization not supported on MPS, using full precision", flush=True)
+            
             # MPS doesn't support bfloat16, use float32 instead
             pipeline = HeartMuLaGenPipeline.from_pretrained(
                 model_path,
@@ -1242,6 +1257,28 @@ class MusicService:
             )
             return patch_pipeline_with_callback(pipeline, sequential_offload=False)
 
+        # Handle CPU-only mode (no CUDA or MPS available)
+        if device_type == "cpu":
+            logger.warning("No GPU detected - running on CPU will be very slow")
+            self.gpu_mode = "cpu"
+            print("[CPU Mode] No GPU detected, using CPU for inference", flush=True)
+            print("[CPU Mode] WARNING: This will be extremely slow. Consider using a system with GPU support.", flush=True)
+            
+            pipeline = HeartMuLaGenPipeline.from_pretrained(
+                model_path,
+                device={
+                    "mula": torch.device("cpu"),
+                    "codec": torch.device("cpu"),
+                },
+                dtype={
+                    "mula": torch.float32,
+                    "codec": torch.float32,
+                },
+                version=version,
+            )
+            return patch_pipeline_with_callback(pipeline, sequential_offload=False)
+
+        # At this point, device_type must be "cuda"
         if use_quantization:
             print(f"[Quantization] 4-bit quantization ENABLED - model will use ~3GB instead of ~11GB", flush=True)
         else:
@@ -1723,7 +1760,7 @@ class MusicService:
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()
                         torch.cuda.synchronize()
-                    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                    elif is_mps_available():
                         torch.mps.empty_cache()
                     logger.info("GPU memory cleaned up after generation")
                 except Exception as cleanup_err:
