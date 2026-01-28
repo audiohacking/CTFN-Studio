@@ -22,6 +22,30 @@ build/macos/
 - Node.js 18+
 - Homebrew (for icon generation tools)
 
+### Automated Build Script
+
+For the easiest local build experience, use the provided build script:
+
+```bash
+./local_build.sh
+```
+
+This script replicates the GitHub Actions build process locally.
+
+### Validate Build Assets
+
+Before building, you can validate that all required files are present:
+
+```bash
+./validate_build_assets.sh
+```
+
+This checks for:
+- Required scripts (generate_icon.sh, codesign.sh)
+- Required directories (backend/models, frontend/dist, etc.)
+- Dependency configuration (transformers version constraints, triton, etc.)
+- PyInstaller spec file configuration
+
 ### Manual Build
 
 1. Install dependencies:
@@ -142,6 +166,11 @@ Ensure all dependencies are installed:
 pip install -r requirements_macos.txt
 pip install pyinstaller
 ```
+
+Common issues:
+- **Missing backend/models directory**: Fixed in latest version (directory created with .gitkeep)
+- **Transformers version conflict**: requirements_macos.txt now constrains to `<4.57.0` to avoid yanked version
+- **Triton not found**: Added to requirements with platform constraint (skipped on Apple Silicon)
 
 ### App won't open
 
