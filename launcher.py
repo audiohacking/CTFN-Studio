@@ -13,6 +13,11 @@ import shutil
 import threading
 from pathlib import Path
 import socket
+import urllib.request
+import urllib.error
+
+# Single instance lock port
+SINGLE_INSTANCE_PORT = 58765
 
 def setup_environment():
     """Set up the macOS app environment."""
@@ -60,17 +65,30 @@ def setup_environment():
 
 def check_single_instance():
     """Check if another instance of the app is already running."""
-    lock_file = Path.home() / "Library" / "Application Support" / "HeartMuLa" / ".lock"
-    lock_file.parent.mkdir(parents=True, exist_ok=True)
-    
     # Try to bind to a port to ensure single instance
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.bind(('127.0.0.1', 58765))  # Random high port for lock
+        sock.bind(('127.0.0.1', SINGLE_INSTANCE_PORT))
         return sock  # Keep socket open to maintain lock
     except OSError:
         # Port is already in use - another instance is running
         return None
+
+def wait_for_server(url='http://127.0.0.1:8000/health', timeout=30):
+    """Wait for the server to be ready by polling the health endpoint."""
+    print("Waiting for server to start...")
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        try:
+            response = urllib.request.urlopen(url, timeout=1)
+            if response.getcode() == 200:
+                print("Server is ready!")
+                return True
+        except (urllib.error.URLError, ConnectionError, OSError):
+            # Server not ready yet, wait a bit
+            time.sleep(0.5)
+    print(f"Warning: Server did not respond within {timeout} seconds")
+    return False
 
 def launch_server(app_dir, logs_dir):
     """Launch the FastAPI server."""
@@ -98,8 +116,7 @@ def launch_server(app_dir, logs_dir):
     server_thread.start()
     
     # Wait for server to be ready
-    print("Waiting for server to start...")
-    time.sleep(3)
+    wait_for_server()
     
     # Launch pywebview window
     try:
@@ -107,7 +124,7 @@ def launch_server(app_dir, logs_dir):
         print("Opening HeartMuLa Studio window...")
         
         # Create window with custom settings
-        window = webview.create_window(
+        webview.create_window(
             'HeartMuLa Studio',
             'http://127.0.0.1:8000',
             width=1400,
@@ -125,7 +142,15 @@ def launch_server(app_dir, logs_dir):
     except ImportError:
         print("Warning: pywebview not available, falling back to browser")
         import webbrowser
-        webbrowser.open("http://localhost:8000")
+        webbrowser.open("http://127.0.0.1:8000")
+        # Keep the server running
+        while True:
+            time.sleep(1)
+    except Exception as e:
+        print(f"Error launching window: {e}")
+        print("Falling back to browser...")
+        import webbrowser
+        webbrowser.open("http://127.0.0.1:8000")
         # Keep the server running
         while True:
             time.sleep(1)
