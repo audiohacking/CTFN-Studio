@@ -16,6 +16,17 @@ from heartlib.heartmula.modeling_heartmula import HeartMuLa
 from heartlib.heartcodec.modeling_heartcodec import HeartCodec
 from tokenizers import Tokenizer
 
+# Configure MPS (Apple Metal) for optimal performance
+# These settings must be set before any PyTorch operations
+if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+    # Enable MPS fallback to CPU for unsupported operations (better than crashing)
+    os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
+    # Note: MPS is already using Metal under the hood, no additional config needed
+    logger_temp = logging.getLogger(__name__)
+    logger_temp.info("[MPS] Apple Metal GPU acceleration enabled")
+    print("[MPS] Apple Metal GPU acceleration enabled with CPU fallback for unsupported ops", flush=True)
+
+
 # Optional: 4-bit quantization support
 try:
     from transformers import BitsAndBytesConfig
@@ -149,7 +160,7 @@ def detect_optimal_gpu_config() -> dict:
     elif is_mps_available():
         result["device_type"] = "mps"
         result["num_gpus"] = 1
-        result["use_quantization"] = False  # MPS works better with full precision
+        result["use_quantization"] = False  # MPS works better with full precision (float16)
         result["use_sequential_offload"] = False  # Unified memory architecture
         result["config_name"] = "Apple Metal (MPS)"
         result["gpu_info"] = {
@@ -162,6 +173,7 @@ def detect_optimal_gpu_config() -> dict:
         }
         print(f"\n[Auto-Config] Using Apple Metal (MPS) device", flush=True)
         print(f"[Auto-Config] MPS uses unified memory - no VRAM limits", flush=True)
+        print(f"[Auto-Config] MPS will use float16 precision for optimal performance", flush=True)
         return result
     # No GPU available - fall back to CPU
     else:
@@ -815,13 +827,17 @@ def patch_pipeline_with_callback(pipeline: HeartMuLaGenPipeline, sequential_offl
             print("[Lazy Loading] Loading HeartCodec for decoding...", flush=True)
             codec_path = getattr(pipeline, '_codec_path', None)
             if codec_path:
+                # Use the same dtype as specified in the pipeline for consistency
+                codec_dtype = getattr(pipeline, 'codec_dtype', torch.float32)
                 pipeline._codec = HeartCodec.from_pretrained(
                     codec_path,
                     device_map=pipeline.codec_device,
-                    dtype=torch.float32,
+                    dtype=codec_dtype,
                 )
                 if torch.cuda.is_available():
                     print(f"[Lazy Loading] HeartCodec loaded. VRAM: {torch.cuda.memory_allocated()/1024**3:.2f}GB", flush=True)
+                elif is_mps_available():
+                    print(f"[Lazy Loading] HeartCodec loaded on MPS with dtype {codec_dtype}", flush=True)
             else:
                 raise RuntimeError("Cannot load HeartCodec: codec_path not available")
 
