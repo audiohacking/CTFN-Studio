@@ -198,17 +198,23 @@ def detect_optimal_gpu_config() -> dict:
 
     for i in range(num_gpus):
         props = torch.cuda.get_device_properties(i)
-        vram_gb = props.total_memory / (1024 ** 3)
+        total_vram_gb = props.total_memory / (1024 ** 3)
+        # Get available/free VRAM (total - already allocated)
+        with torch.cuda.device(i):
+            free_vram_bytes = torch.cuda.mem_get_info()[0]  # (free, total)
+            free_vram_gb = free_vram_bytes / (1024 ** 3)
         compute_cap = props.major + props.minor / 10
         gpu_info[i] = {
             "name": props.name,
-            "vram_gb": vram_gb,
+            "vram_gb": total_vram_gb,
+            "vram_free_gb": free_vram_gb,
             "compute_capability": compute_cap,
             "supports_flash_attention": compute_cap >= 7.0,
         }
-        total_vram += vram_gb
-        if vram_gb > max_vram:
-            max_vram = vram_gb
+        total_vram += total_vram_gb
+        # Use FREE VRAM for decision making, not total
+        if free_vram_gb > max_vram:
+            max_vram = free_vram_gb
             max_vram_gpu = i
         if compute_cap > max_compute:
             max_compute = compute_cap
@@ -216,15 +222,19 @@ def detect_optimal_gpu_config() -> dict:
 
     result["gpu_info"] = gpu_info
 
-    # Log detected GPUs
+    # Log detected GPUs with both total and available VRAM
     print(f"\n[Auto-Config] Detected {num_gpus} GPU(s):", flush=True)
     for i, info in gpu_info.items():
         fa_status = "✓ Flash Attention" if info["supports_flash_attention"] else "✗ No Flash Attention"
-        print(f"  GPU {i}: {info['name']} ({info['vram_gb']:.1f} GB, SM {info['compute_capability']}) - {fa_status}", flush=True)
+        vram_status = f"{info['vram_free_gb']:.1f}GB free / {info['vram_gb']:.1f}GB total"
+        print(f"  GPU {i}: {info['name']} ({vram_status}, SM {info['compute_capability']}) - {fa_status}", flush=True)
 
     # Decision logic for single GPU
     if num_gpus == 1:
-        vram = gpu_info[0]["vram_gb"]
+        # Use FREE VRAM for threshold decisions (accounts for VRAM used by other apps)
+        vram = gpu_info[0]["vram_free_gb"]
+        total_vram = gpu_info[0]["vram_gb"]
+        print(f"[Auto-Config] Using FREE VRAM ({vram:.1f}GB) for configuration (total: {total_vram:.1f}GB)", flush=True)
 
         if vram >= VRAM_THRESHOLD_FULL_PRECISION:
             # 20GB+: Full precision, no swapping needed
@@ -745,6 +755,13 @@ def patch_pipeline_with_callback(pipeline: HeartMuLaGenPipeline, sequential_offl
 
         bs_size = 2 if cfg_scale != 1.0 else 1
         pipeline.mula.setup_caches(bs_size)
+
+        # Log VRAM usage after cache setup
+        if torch.cuda.is_available():
+            allocated = torch.cuda.memory_allocated() / 1024**3
+            reserved = torch.cuda.memory_reserved() / 1024**3
+            free = torch.cuda.mem_get_info()[0] / 1024**3
+            print(f"[VRAM] After cache setup: {allocated:.2f}GB allocated, {reserved:.2f}GB reserved, {free:.2f}GB free", flush=True)
 
         with get_autocast_context(pipeline.mula_device.type, pipeline.mula_dtype):
             curr_token = pipeline.mula.generate_frame(
@@ -1998,7 +2015,7 @@ class MusicService:
 
                     with torch.no_grad():
                         pipeline_inputs = {
-                            "lyrics": request.lyrics,
+                            "lyrics": request.lyrics or "",  # heartlib expects string, not None
                             "tags": sound_tags,
                         }
                         if ref_audio_path:
