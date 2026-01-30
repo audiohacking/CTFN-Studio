@@ -233,8 +233,8 @@ def detect_optimal_gpu_config() -> dict:
     if num_gpus == 1:
         # Use FREE VRAM for threshold decisions (accounts for VRAM used by other apps)
         vram = gpu_info[0]["vram_free_gb"]
-        total_vram = gpu_info[0]["vram_gb"]
-        print(f"[Auto-Config] Using FREE VRAM ({vram:.1f}GB) for configuration (total: {total_vram:.1f}GB)", flush=True)
+        gpu_total_vram = gpu_info[0]["vram_gb"]
+        print(f"[Auto-Config] Using FREE VRAM ({vram:.1f}GB) for configuration (total: {gpu_total_vram:.1f}GB)", flush=True)
 
         if vram >= VRAM_THRESHOLD_FULL_PRECISION:
             # 20GB+: Full precision, no swapping needed
@@ -756,8 +756,8 @@ def patch_pipeline_with_callback(pipeline: HeartMuLaGenPipeline, sequential_offl
         bs_size = 2 if cfg_scale != 1.0 else 1
         pipeline.mula.setup_caches(bs_size)
 
-        # Log VRAM usage after cache setup
-        if torch.cuda.is_available():
+        # Log VRAM usage after cache setup (CUDA only)
+        if torch.cuda.is_available() and pipeline.mula_device.type == 'cuda':
             allocated = torch.cuda.memory_allocated() / 1024**3
             reserved = torch.cuda.memory_reserved() / 1024**3
             free = torch.cuda.mem_get_info()[0] / 1024**3
