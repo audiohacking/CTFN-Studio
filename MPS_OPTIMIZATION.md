@@ -71,10 +71,10 @@ To verify the optimizations are working:
 
 1. Check the logs during model loading - you should see:
    ```
-   [Apple Metal] Loading models with float16 precision for optimal MPS performance
+   [Apple Metal] Loading HeartMuLa and HeartCodec on MPS (generation + decode)
    [Apple Metal] HeartMuLa model device: mps:0
    [Apple Metal] HeartCodec model device: mps:0
-   [Apple Metal] MPS pipeline loaded successfully with float16 precision
+   [Apple Metal] MPS pipeline: HeartMuLa and HeartCodec on MPS
    ```
 
 2. During generation, you should see:
@@ -92,6 +92,25 @@ To verify the optimizations are working:
 - **Quantization**: 4-bit quantization (BitsAndBytes) is CUDA-only, not available on MPS
 - **Torch.compile**: Not yet optimized for MPS, disabled for Apple Silicon
 - **Unified Memory**: MPS uses unified memory architecture, no explicit VRAM limits
+
+### Decode on MPS: limitation and fix
+
+**Limitation:** HeartCodec’s decoder (heartlib) uses **torch.jit.script** for the `snake()` activation in `ScalarModel` (heartlib/heartcodec/models/sq_codec.py). JIT has limited MPS support and can cause `invalid type: 'torch.mps.FloatTensor'` or silent CPU fallback when decode runs on Metal, so “Converting Audio” stays slow.
+
+**Fix (baseline extension):** We extend our baseline for full MPS support by **patching heartlib at runtime** when MPS is available (same idea as SpeechBrain PR #1805 / issue #1794):
+
+1. **snake()** – In `music_service.py` we replace `sq_codec.snake` with an **eager (non-JIT)** implementation so the decode graph runs natively on MPS.
+2. **`.type(tensor.type())`** – heartlib’s `PixArtAlphaCombinedFlowEmbeddings.timestep_embedding` uses `.type(timesteps.type())`, which on MPS can raise `invalid type: 'torch.mps.FloatTensor'`. We patch it to use **`.to(device=..., dtype=...)`** instead (match device and dtype explicitly, like the SpeechBrain fix).
+- Patches run **before** importing HeartCodec so all decode code paths use the fixed versions.
+- No fork of heartlib is required; patches are applied once at module load when `torch.backends.mps.is_available()`.
+
+**Port behavior (unchanged):**
+
+1. **Load**: HeartMuLa and HeartCodec both on MPS with float16.
+2. **Decode**: `detokenize(frames_for_codec)` runs on MPS with the patched snake. If decode still raises (e.g. another op rejects MPS), we fall back to CPU for that call, then restore codec to MPS.
+3. **Save (same as CPU)**: We always convert the waveform to CPU float32 and round-trip via numpy before `torchaudio.save()`, so the backend never sees an MPS tensor.
+
+Result: generation and **decoding** run on Apple Metal (M4 etc.); only the final save step uses CPU tensors for compatibility.
 
 ## Future Optimizations
 

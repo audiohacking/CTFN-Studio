@@ -638,7 +638,7 @@ export const ComposerSidebar: React.FC<ComposerSidebarProps> = ({
                             Duration: {duration}s
                         </label>
                         <div className="flex gap-2">
-                            {[30, 60, 120, 180].map(d => (
+                            {[15, 30, 60, 120, 180].map(d => (
                                 <button
                                     key={d}
                                     onClick={() => setDuration(d)}

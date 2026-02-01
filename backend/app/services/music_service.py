@@ -13,18 +13,65 @@ from backend.app.models import GenerationRequest, Job, JobStatus
 from sqlmodel import Session, select
 from heartlib.pipelines.music_generation import HeartMuLaGenPipeline, HeartMuLaGenConfig
 from heartlib.heartmula.modeling_heartmula import HeartMuLa
+
+# Apply HeartCodec MPS patches *before* importing HeartCodec (same ideas as SpeechBrain PR #1805).
+# 1. snake(): JIT-scripted snake fails on MPS; use eager version.
+# 2. .type(tensor.type()): On MPS, .type(timesteps.type()) can raise "invalid type: torch.mps.FloatTensor".
+#    Use .to(device=..., dtype=...) instead (dtype + device, not .type()).
+if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+    import math as _math
+    try:
+        import heartlib.heartcodec.models.sq_codec as _sq_codec
+        if not getattr(_sq_codec, "_snake_mps_patched", False):
+            def _snake_eager(x, alpha):
+                shape = x.shape
+                x = x.reshape(shape[0], shape[1], -1)
+                x = x + (alpha + 1e-9).reciprocal() * torch.sin(alpha * x).pow(2)
+                x = x.reshape(shape)
+                return x
+            _sq_codec.snake = _snake_eager
+            _sq_codec._snake_mps_patched = True
+            _log = logging.getLogger(__name__)
+            _log.info("[MPS] Patched heartlib snake() for MPS (eager path)")
+            print("[MPS] HeartCodec decode: patched snake activation for Apple Metal", flush=True)
+    except Exception as _e:
+        logging.getLogger(__name__).warning("[MPS] Could not patch heartcodec snake: %s", _e)
+    try:
+        import heartlib.heartcodec.models.transformer as _transformer
+        if not getattr(_transformer, "_timestep_embedding_mps_patched", False):
+            _PixArt = getattr(_transformer, "PixArtAlphaCombinedFlowEmbeddings", None)
+            if _PixArt is not None:
+                _orig_timestep_embedding = _PixArt.timestep_embedding
+                def _timestep_embedding_mps(self, timesteps, max_period=10000, scale=1000):
+                    half = self.flow_t_size // 2
+                    freqs = torch.exp(
+                        -_math.log(max_period)
+                        * torch.arange(start=0, end=half, device=timesteps.device, dtype=timesteps.dtype)
+                        / half
+                    )
+                    args = timesteps[:, None] * freqs[None] * scale
+                    embedding = torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
+                    if self.flow_t_size % 2:
+                        embedding = torch.cat(
+                            [embedding, torch.zeros_like(embedding[:, :1])], dim=-1
+                        )
+                    return embedding
+                _PixArt.timestep_embedding = _timestep_embedding_mps
+                _transformer._timestep_embedding_mps_patched = True
+                _log = logging.getLogger(__name__)
+                _log.info("[MPS] Patched heartlib timestep_embedding for MPS (.to(device,dtype) instead of .type())")
+                print("[MPS] HeartCodec decode: patched timestep embedding for Apple Metal", flush=True)
+    except Exception as _e:
+        logging.getLogger(__name__).warning("[MPS] Could not patch heartcodec transformer: %s", _e)
+
 from heartlib.heartcodec.modeling_heartcodec import HeartCodec
 from tokenizers import Tokenizer
 
 # Configure MPS (Apple Metal) for optimal performance
-# Note: PYTORCH_ENABLE_MPS_FALLBACK can be set at runtime for fallback behavior
-if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-    # Enable MPS fallback to CPU for unsupported operations (better than crashing)
-    # This takes effect for subsequent tensor operations
+if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
     os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
-    # Note: MPS is already using Metal under the hood, no additional config needed
-    logger_temp = logging.getLogger(__name__)
-    logger_temp.info("[MPS] Apple Metal GPU acceleration enabled")
+    _log = logging.getLogger(__name__)
+    _log.info("[MPS] Apple Metal GPU acceleration enabled")
     print("[MPS] Apple Metal GPU acceleration enabled with CPU fallback for unsupported ops", flush=True)
 
 
@@ -315,6 +362,30 @@ def detect_optimal_gpu_config() -> dict:
     return result
 
 
+def _is_heartcodec_complete(heartcodec_path: str) -> bool:
+    """
+    Return True iff HeartCodec-oss directory exists and contains valid weight files
+    (avoids treating empty or partial downloads as complete).
+    """
+    if not os.path.isdir(heartcodec_path):
+        return False
+    single = ["model.safetensors", "pytorch_model.bin", "model.bin"]
+    if any(os.path.isfile(os.path.join(heartcodec_path, p)) for p in single):
+        return True
+    index_file = os.path.join(heartcodec_path, "model.safetensors.index.json")
+    if os.path.isfile(index_file):
+        try:
+            with open(index_file, "r") as f:
+                index_data = json.load(f)
+            required = set(index_data.get("weight_map", {}).values())
+            return all(
+                os.path.isfile(os.path.join(heartcodec_path, s)) for s in required
+            )
+        except Exception:
+            pass
+    return False
+
+
 def ensure_models_downloaded(model_dir: str = DEFAULT_MODEL_DIR, version: str = None) -> str:
     """
     Ensure HeartMuLa models are downloaded. Downloads from HuggingFace Hub if not present.
@@ -343,10 +414,10 @@ def ensure_models_downloaded(model_dir: str = DEFAULT_MODEL_DIR, version: str = 
     tokenizer_path = os.path.join(model_dir, "tokenizer.json")
     gen_config_path = os.path.join(model_dir, "gen_config.json")
 
-    # Check if all basic directories and files exist
+    # Check if all basic directories and files exist (HeartCodec must have weight files)
     basic_present = (
         os.path.exists(heartmula_path) and
-        os.path.exists(heartcodec_path) and
+        _is_heartcodec_complete(heartcodec_path) and
         os.path.isfile(tokenizer_path) and
         os.path.isfile(gen_config_path)
     )
@@ -437,8 +508,13 @@ def ensure_models_downloaded(model_dir: str = DEFAULT_MODEL_DIR, version: str = 
         )
         print(f"[Models] {folder_name} downloaded.", flush=True)
 
-    # Download HeartCodec model
-    if not os.path.exists(heartcodec_path):
+    # Download HeartCodec model (re-download if directory exists but is incomplete/corrupt)
+    if not _is_heartcodec_complete(heartcodec_path):
+        if os.path.exists(heartcodec_path):
+            import shutil
+            logger.info(f"Removing incomplete/corrupt HeartCodec directory: {heartcodec_path}")
+            print(f"[Models] Removing incomplete HeartCodec directory, re-downloading...", flush=True)
+            shutil.rmtree(heartcodec_path, ignore_errors=True)
         print(f"[Models] Downloading HeartCodec-oss...", flush=True)
         snapshot_download(
             repo_id=HF_HEARTCODEC_REPO,
@@ -827,7 +903,8 @@ def patch_pipeline_with_callback(pipeline: HeartMuLaGenPipeline, sequential_offl
         # -------------------------------------------------------------------------
         # "Decoding audio..." step
         # -------------------------------------------------------------------------
-        # 1. HeartCodec (if lazy) is loaded on codec_device (CPU on MPS, GPU on CUDA).
+        # 1. HeartCodec (if lazy) is loaded on codec_device (MPS or CUDA). We try MPS decode;
+        #    on "invalid type: 'torch.mps.FloatTensor'" we fall back to CPU decode for this call.
         # 2. Token frames from HeartMuLa are moved to codec device and passed to
         #    pipeline.codec.detokenize(codes). Detokenize:
         #    - Pads/repeats codes to min_samples, slices into overlapping segments.
@@ -870,7 +947,31 @@ def patch_pipeline_with_callback(pipeline: HeartMuLaGenPipeline, sequential_offl
         # "index X is out of bounds for dimension 1 with size 8192" in ResidualVQ.
         codebook_size = getattr(pipeline.codec.config, "codebook_size", 8192)
         frames_for_codec = frames_for_codec.clamp(0, codebook_size - 1)
-        wav = pipeline.codec.detokenize(frames_for_codec)
+
+        # Decode: try MPS (or CUDA) first; fall back to CPU if detokenize raises (e.g. MPS tensor rejected)
+        wav = None
+        try:
+            wav = pipeline.codec.detokenize(frames_for_codec)
+        except Exception as e:
+            err_str = str(e)
+            if "mps" in err_str.lower() or "FloatTensor" in err_str or "invalid type" in err_str:
+                # Fallback: run decode on CPU (same logic as working CPU path)
+                logger.warning(f"[Decode] MPS decode failed ({e}), retrying on CPU")
+                print("[Decode] Retrying decode on CPU (MPS path raised error)...", flush=True)
+                frames_cpu = frames_for_codec.cpu()
+                codec_device_saved = pipeline.codec_device
+                codec_dtype_saved = codec_dtype
+                try:
+                    pipeline.codec_device = torch.device("cpu")
+                    if hasattr(pipeline, '_codec') and pipeline._codec is not None:
+                        pipeline._codec = pipeline._codec.to(device=torch.device("cpu"), dtype=torch.float32)
+                    wav = pipeline.codec.detokenize(frames_cpu)
+                finally:
+                    pipeline.codec_device = codec_device_saved
+                    if hasattr(pipeline, '_codec') and pipeline._codec is not None and codec_device_saved.type != "cpu":
+                        pipeline._codec = pipeline._codec.to(device=codec_device_saved, dtype=codec_dtype_saved)
+            if wav is None:
+                raise e
 
         # Cleanup codec if using lazy loading (free VRAM for next generation)
         if lazy_codec:
@@ -891,10 +992,10 @@ def patch_pipeline_with_callback(pipeline: HeartMuLaGenPipeline, sequential_offl
         elif not lazy_codec:
             pipeline._unload()
 
-        # Ensure plain CPU tensor before save - some backends (e.g. torchaudio on macOS) reject
-        # tensors that originated on MPS ("invalid type: 'torch.mps.FloatTensor'"). Round-trip
-        # via numpy strips device association so the backend receives a standard CPU tensor.
-        wav_cpu = wav.to(torch.float32).cpu()
+        # Port requirements (same as working CPU path): torchaudio expects CPU float32.
+        # Convert wav to CPU float32; round-trip via numpy so backend never sees MPS/CUDA.
+        # MPS tensors require .cpu() before .numpy(); .detach() avoids graph issues.
+        wav_cpu = wav.detach().to(torch.float32).cpu()
         wav_plain = torch.from_numpy(wav_cpu.numpy().copy()).to(torch.float32)
         torchaudio.save(save_path, wav_plain, 48000)
 
@@ -1086,10 +1187,10 @@ class MusicService:
         tokenizer_path = os.path.join(model_dir, "tokenizer.json")
         gen_config_path = os.path.join(model_dir, "gen_config.json")
 
-        # Check if all basic directories and files exist
+        # Check if all basic directories and files exist (HeartCodec must have weight files)
         basic_present = (
             os.path.exists(heartmula_path) and
-            os.path.exists(heartcodec_path) and
+            _is_heartcodec_complete(heartcodec_path) and
             os.path.isfile(tokenizer_path) and
             os.path.isfile(gen_config_path)
         )
@@ -1230,8 +1331,13 @@ class MusicService:
                 self._emit_startup_progress("error", 0, error_msg, error_msg)
                 raise
 
-        # Download HeartCodec model
-        if not os.path.exists(heartcodec_path):
+        # Download HeartCodec model (re-download if directory exists but is incomplete/corrupt)
+        if not _is_heartcodec_complete(heartcodec_path):
+            if os.path.exists(heartcodec_path):
+                import shutil
+                logger.info(f"Removing incomplete/corrupt HeartCodec directory: {heartcodec_path}")
+                print(f"[Models] Removing incomplete HeartCodec directory, re-downloading...", flush=True)
+                shutil.rmtree(heartcodec_path, ignore_errors=True)
             self._emit_startup_progress("downloading", 30, "Downloading HeartCodec (~1.5GB)...")
             
             def download_codec():
@@ -1309,23 +1415,41 @@ class MusicService:
             if model_path is None:
                 model_path = await self._download_models_with_progress(DEFAULT_MODEL_DIR, version)
 
-            # Load models
-            self._emit_startup_progress("loading", 45, "Loading HeartMuLa model...")
-
+            # Load models (with one auto-retry on corrupt/missing model files)
             loop = asyncio.get_running_loop()
+            load_retried = False
 
-            # Store settings being used (preserve LLM settings)
-            self.current_settings.update({
-                "quantization_4bit": _4BIT_ENV,
-                "sequential_offload": _OFFLOAD_ENV,
-                "torch_compile": ENABLE_TORCH_COMPILE,
-                "torch_compile_mode": TORCH_COMPILE_MODE
-            })
-
-            self.pipeline = await loop.run_in_executor(
-                None,
-                lambda mp=model_path, v=version: self._load_pipeline_multi_gpu(mp, v)
-            )
+            while True:
+                try:
+                    self._emit_startup_progress("loading", 45, "Loading HeartMuLa model...")
+                    self.current_settings.update({
+                        "quantization_4bit": _4BIT_ENV,
+                        "sequential_offload": _OFFLOAD_ENV,
+                        "torch_compile": ENABLE_TORCH_COMPILE,
+                        "torch_compile_mode": TORCH_COMPILE_MODE
+                    })
+                    self.pipeline = await loop.run_in_executor(
+                        None,
+                        lambda mp=model_path, v=version: self._load_pipeline_multi_gpu(mp, v)
+                    )
+                    break
+                except Exception as e:
+                    err_str = str(e)
+                    # Detect "no file named ... found in directory ..." (corrupt/partial model)
+                    if not load_retried and "no file named" in err_str and "found in directory" in err_str:
+                        model_dir = model_path if model_path else DEFAULT_MODEL_DIR
+                        heartcodec_path = os.path.join(model_dir, "HeartCodec-oss")
+                        if os.path.exists(heartcodec_path) or "HeartCodec" in err_str:
+                            import shutil
+                            logger.warning(f"Model load failed (corrupt/partial?), removing HeartCodec and re-downloading: {e}")
+                            self._emit_startup_progress("downloading", 10, "Re-downloading missing/corrupt model...")
+                            shutil.rmtree(heartcodec_path, ignore_errors=True)
+                            model_path = await self._download_models_with_progress(model_dir, version)
+                            load_retried = True
+                            continue
+                    logger.error(f"Failed to load Heartlib model: {e}")
+                    self._emit_startup_progress("error", 0, f"Failed to load model: {err_str}", err_str)
+                    raise
 
             self._emit_startup_progress("loading", 95, "Initializing pipeline...")
 
@@ -1570,28 +1694,29 @@ class MusicService:
                 os.environ["HF_HUB_DISABLE_CACHING_ALLOCATOR_WARMUP"] = "1"
             
             try:
-                # HeartMuLa on MPS for fast generation; HeartCodec on CPU to avoid
-                # "invalid type: 'torch.mps.FloatTensor'" during decode (detokenize/save path).
-                cpu_device = torch.device("cpu")
+                # Port to MPS: HeartMuLa and HeartCodec on MPS for fast generation and decode.
+                # Save path must match CPU requirements: torchaudio expects CPU float32 tensor.
+                # We convert wav to CPU float32 and round-trip via numpy so the backend never sees MPS.
                 mps_device = torch.device("mps")
-                print("[Apple Metal] Loading HeartMuLa on MPS (generation), HeartCodec on CPU (decode)", flush=True)
+                cpu_device = torch.device("cpu")
+                print("[Apple Metal] Loading HeartMuLa and HeartCodec on MPS (generation + decode)", flush=True)
                 pipeline = HeartMuLaGenPipeline.from_pretrained(
                     model_path,
                     device={
                         "mula": mps_device,
-                        "codec": cpu_device,
+                        "codec": mps_device,
                     },
                     dtype={
                         "mula": torch.float16,
-                        "codec": torch.float32,
+                        "codec": torch.float16,
                     },
                     version=version,
                 )
                 
                 pipeline.mula_device = mps_device
-                pipeline.codec_device = cpu_device
+                pipeline.codec_device = mps_device
                 pipeline.mula_dtype = torch.float16
-                pipeline.codec_dtype = torch.float32
+                pipeline.codec_dtype = torch.float16
                 
                 if hasattr(pipeline, '_mula') and pipeline._mula is not None:
                     try:
@@ -1615,16 +1740,16 @@ class MusicService:
                         if codec_params:
                             codec_device = codec_params[0].device
                             print(f"[Apple Metal] HeartCodec model device: {codec_device}", flush=True)
-                            if codec_device.type != 'cpu':
-                                print(f"[Apple Metal] Moving HeartCodec to CPU for reliable decode (avoids MPS tensor errors)...", flush=True)
-                                pipeline._codec = pipeline._codec.to(device=cpu_device, dtype=torch.float32)
-                                print(f"[Apple Metal] HeartCodec on CPU (float32)", flush=True)
+                            if codec_device.type != 'mps':
+                                print(f"[Apple Metal] Moving HeartCodec to MPS for decode...", flush=True)
+                                pipeline._codec = pipeline._codec.to(device=mps_device, dtype=torch.float16)
+                                print(f"[Apple Metal] HeartCodec on MPS (float16)", flush=True)
                         else:
                             logger.warning("[MPS] HeartCodec model has no parameters - cannot verify device")
                     except Exception as e:
                         logger.warning(f"[MPS] Failed to verify HeartCodec device: {e}")
                 
-                print("[Apple Metal] MPS pipeline loaded: HeartMuLa on MPS, HeartCodec on CPU", flush=True)
+                print("[Apple Metal] MPS pipeline: HeartMuLa and HeartCodec on MPS", flush=True)
                 return patch_pipeline_with_callback(pipeline, sequential_offload=False)
             finally:
                 # Restore original function if we patched it
