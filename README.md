@@ -1,15 +1,15 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/audiohacking/HeartMuLa-Studio/main/frontend/public/ctfn-icon.png" alt="CTFN Studio" width="120" height="120">
-</p>
+<img src="https://raw.githubusercontent.com/audiohacking/HeartMuLa-Studio/main/frontend/public/ctfn-icon.png" alt="CTFN Studio" width="120" height="120">
 
-<h1 align="center">C(i)T(o)F(o)N(o) Studio</h1>
+<h1 align="left">CTFN Studio</h1>
 
-<p align="center">
+> CTFN in inspired by CITOFONO _(Doorbell in Italian)_ the only instrument every human played at least once
+
+<p align="left">
   <strong>Apple Silicon / MPS fork of HeartMuLa Studio<br>
     AI music generation studio for <a href="https://github.com/HeartMuLa/heartlib">HeartLib</a>, optimized for Apple Metal (M-Series &amp; Intel Macs)</strong>
 </p>
 
-<p align="center">
+<p align="left">
   <a href="#features">Features</a> •
   <a href="#installation">Installation</a> •
   <a href="#usage">Usage</a> •
@@ -17,7 +17,7 @@
   <a href="#credits">Credits</a>
 </p>
 
-<p align="center">
+<p align="left">
   <img src="https://img.shields.io/badge/React-18.3-61DAFB?style=flat-square&logo=react" alt="React">
   <img src="https://img.shields.io/badge/FastAPI-0.115-009688?style=flat-square&logo=fastapi" alt="FastAPI">
   <img src="https://img.shields.io/badge/TypeScript-5.6-3178C6?style=flat-square&logo=typescript" alt="TypeScript">
