@@ -2,10 +2,11 @@
   <img src="https://raw.githubusercontent.com/audiohacking/HeartMuLa-Studio/main/frontend/public/ctfn-icon.png" alt="CTFN Studio" width="120" height="120">
 </p>
 
-<h1 align="center">CTFN Studio</h1>
+<h1 align="center">C(i)T(o)F(o)N(o) Studio</h1>
 
 <p align="center">
-  <strong>Apple Silicon / MPS fork — AI music generation studio for <a href="https://github.com/HeartMuLa/heartlib">HeartLib</a>, optimized for Apple Metal (M-Series &amp; Intel Macs)</strong>
+  <strong>Apple Silicon / MPS fork of HeartMuLa Studio<br>
+    AI music generation studio for <a href="https://github.com/HeartMuLa/heartlib">HeartLib</a>, optimized for Apple Metal (M-Series &amp; Intel Macs)</strong>
 </p>
 
 <p align="center">
