@@ -1,5 +1,5 @@
 #!/bin/bash
-# Code signing script for HeartMuLa Studio macOS app
+# Code signing script for CTFN Studio macOS app
 # This script signs the app bundle to prevent "app is damaged" warnings
 
 set -e

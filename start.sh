@@ -1,5 +1,5 @@
 #!/bin/bash
-# HeartMuLa Studio Startup Script
+# CTFN Studio Startup Script
 #
 # Usage:
 #   ./start.sh                    # Auto-detect optimal GPU config
@@ -26,7 +26,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --help)
-            echo "HeartMuLa Studio Startup Script"
+            echo "CTFN Studio Startup Script"
             echo ""
             echo "Usage: ./start.sh [OPTIONS]"
             echo ""
@@ -55,7 +55,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 echo "╔═══════════════════════════════════════════════════════════╗"
-echo "║              HeartMuLa Studio                             ║"
+echo "║              CTFN Studio                                 ║"
 echo "╚═══════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -103,6 +103,6 @@ done
 
 echo ""
 echo "╔═══════════════════════════════════════════════════════════╗"
-echo "║  HeartMuLa Studio is ready!                               ║"
+echo "║  CTFN Studio is ready!                                    ║"
 echo "║  Open: http://localhost:5173                              ║"
 echo "╚═══════════════════════════════════════════════════════════╝"

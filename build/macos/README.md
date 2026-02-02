@@ -1,14 +1,14 @@
-# HeartMuLa Studio - macOS Build
+# CTFN Studio - macOS Build
 
-This directory contains assets and scripts for building HeartMuLa Studio as a standalone macOS application using PyInstaller.
+This directory contains assets and scripts for building CTFN Studio as a standalone macOS application using PyInstaller.
 
 ## Directory Structure
 
 ```
 build/macos/
-├── HeartMuLa.icns           # App icon (generated from SVG)
+├── CTFNStudio.icns          # App icon (generated from frontend/public/ctfn-icon.png)
 ├── codesign.sh              # Code signing script
-├── generate_icon.sh         # Script to generate .icns from SVG
+├── generate_icon.sh         # Script to generate .icns from PNG
 └── hooks/
     └── hook-heartlib.py     # PyInstaller hook for heartlib
 ```
@@ -76,23 +76,23 @@ pyinstaller HeartMuLa.spec --clean --noconfirm
 
 5. Set up executable:
 ```bash
-cp dist/HeartMuLa.app/Contents/MacOS/HeartMuLa_bin dist/HeartMuLa.app/Contents/MacOS/HeartMuLa
-chmod +x dist/HeartMuLa.app/Contents/MacOS/HeartMuLa
+cp dist/CTFNStudio.app/Contents/MacOS/CTFNStudio_bin dist/CTFNStudio.app/Contents/MacOS/CTFNStudio
+chmod +x dist/CTFNStudio.app/Contents/MacOS/CTFNStudio
 ```
 
 6. Code sign:
 ```bash
-./build/macos/codesign.sh dist/HeartMuLa.app
+./build/macos/codesign.sh dist/CTFNStudio.app
 ```
 
 7. Create DMG:
 ```bash
 mkdir -p dmg_temp
-cp -R dist/HeartMuLa.app dmg_temp/
-cp HeartMuLa.command dmg_temp/
+cp -R dist/CTFNStudio.app dmg_temp/
+cp CTFNStudio.command dmg_temp/
 ln -s /Applications dmg_temp/Applications
 cp .github/DMG_README.txt dmg_temp/README.txt
-hdiutil create -volname "HeartMuLa Studio" -srcfolder dmg_temp -ov -format UDZO HeartMuLa-macOS.dmg
+hdiutil create -volname "CTFN Studio" -srcfolder dmg_temp -ov -format UDZO CTFNStudio-macOS.dmg
 ```
 
 ### GitHub Actions
@@ -156,9 +156,9 @@ For production releases, set the `MACOS_SIGNING_IDENTITY` secret in GitHub to yo
 
 ### Icon not generating
 
-Install the required tools:
+Ensure `frontend/public/ctfn-icon.png` exists. Install ImageMagick or use sips:
 ```bash
-brew install librsvg imagemagick
+brew install imagemagick
 ```
 
 ### PyInstaller errors

@@ -65,7 +65,7 @@ export function StartupScreen({ status, darkMode, gpuStatus }: StartupScreenProp
                 <h1 className={`text-2xl font-bold mb-2 ${
                     darkMode ? 'text-white' : 'text-slate-900'
                 }`}>
-                    HeartMuLa Studio
+                    CTFN Studio
                 </h1>
 
                 {/* Status Label */}

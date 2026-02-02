@@ -62,7 +62,7 @@ async def lifespan(app: FastAPI):
     event_manager.shutdown()
     music_service.shutdown_all()
 
-app = FastAPI(lifespan=lifespan, title="HeartMuLa Music API")
+app = FastAPI(lifespan=lifespan, title="CTFN Studio API")
 
 # CORS
 app.add_middleware(

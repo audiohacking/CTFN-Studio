@@ -1,13 +1,13 @@
 #!/bin/bash
 # ---------------------------------------------------------------------------
-#  HeartMuLa Studio - Local Build Script
+#  CTFN Studio - Local Build Script
 #  Replicates the GitHub Actions build process for local testing
 # ---------------------------------------------------------------------------
 
 set -e  # Exit on error
 
 echo "=========================================="
-echo "HeartMuLa Studio - Local Build"
+echo "CTFN Studio - Local Build"
 echo "=========================================="
 echo ""
 
@@ -64,8 +64,8 @@ echo ""
 
 # Check build/macos assets (same checks as GitHub Actions)
 echo "Checking build assets..."
-if [ ! -f "build/macos/HeartMuLa.icns" ]; then
-    echo "ERROR: build/macos/HeartMuLa.icns not found after generation."
+if [ ! -f "build/macos/CTFNStudio.icns" ]; then
+    echo "ERROR: build/macos/CTFNStudio.icns not found after generation."
     exit 1
 fi
 if [ ! -f "build/macos/codesign.sh" ]; then
@@ -82,7 +82,7 @@ echo ""
 
 # Clean previous PyInstaller outputs
 echo "Cleaning previous builds..."
-rm -rf dist/HeartMuLa.app build/HeartMuLa
+rm -rf dist/CTFNStudio.app build/CTFNStudio
 
 # Build with PyInstaller
 echo "Building with PyInstaller..."
@@ -92,26 +92,26 @@ echo ""
 
 # Set up app bundle executable
 echo "Setting up app bundle executable..."
-cp dist/HeartMuLa.app/Contents/MacOS/HeartMuLa_bin dist/HeartMuLa.app/Contents/MacOS/HeartMuLa
-chmod +x dist/HeartMuLa.app/Contents/MacOS/HeartMuLa
+cp dist/CTFNStudio.app/Contents/MacOS/CTFNStudio_bin dist/CTFNStudio.app/Contents/MacOS/CTFNStudio
+chmod +x dist/CTFNStudio.app/Contents/MacOS/CTFNStudio
 
 # Code sign the app bundle
 echo ""
 echo "Code signing app bundle..."
 chmod +x build/macos/codesign.sh
-MACOS_SIGNING_IDENTITY="-" ./build/macos/codesign.sh dist/HeartMuLa.app
+MACOS_SIGNING_IDENTITY="-" ./build/macos/codesign.sh dist/CTFNStudio.app
 
 echo ""
 echo "=========================================="
 echo "✓ Build Complete!"
 echo "=========================================="
 echo ""
-echo "App: dist/HeartMuLa.app"
+echo "App: dist/CTFNStudio.app"
 echo ""
 echo "To test:"
-echo "  open dist/HeartMuLa.app"
+echo "  open dist/CTFNStudio.app"
 echo ""
 echo "If blocked by Gatekeeper:"
-echo "  xattr -cr dist/HeartMuLa.app"
+echo "  xattr -cr dist/CTFNStudio.app"
 echo "  (then right-click → Open)"
 echo ""

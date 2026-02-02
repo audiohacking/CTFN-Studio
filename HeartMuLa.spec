@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# PyInstaller spec file for HeartMuLa Studio macOS App
+# PyInstaller spec file for CTFN Studio macOS App
 
 import os
 import sys
@@ -7,7 +7,7 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 # Get the current directory
 block_cipher = None
-app_name = 'HeartMuLa'
+app_name = 'CTFNStudio'
 
 # Collect data files from various packages
 datas = []
@@ -73,7 +73,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,  # Disabled for macOS - UPX can cause issues with code signing
-    console=False,  # No console window for cleaner UI experience. Check ~/Library/Logs/HeartMuLa/ for logs
+    console=False,  # No console window for cleaner UI experience. Check ~/Library/Logs/HeartMuLa/ for logs (data path unchanged for compatibility)
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
@@ -95,12 +95,12 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name=f'{app_name}.app',
-    icon='build/macos/HeartMuLa.icns',
+    icon='build/macos/CTFNStudio.icns',
     bundle_identifier='com.audiohacking.heartmula',
     version='0.1.0',
     info_plist={
-        'CFBundleName': 'HeartMuLa Studio',
-        'CFBundleDisplayName': 'HeartMuLa Studio',
+        'CFBundleName': 'CTFN Studio',
+        'CFBundleDisplayName': 'CTFN Studio',
         'CFBundleExecutable': app_name,
         'CFBundleIdentifier': 'com.audiohacking.heartmula',
         'CFBundleVersion': '0.1.0',
@@ -111,7 +111,7 @@ app = BUNDLE(
         'NSAppTransportSecurity': {
             'NSAllowsArbitraryLoads': True
         },
-        'NSMicrophoneUsageDescription': 'HeartMuLa Studio needs access to the microphone for audio input.',
+        'NSMicrophoneUsageDescription': 'CTFN Studio needs access to the microphone for audio input.',
         'LSApplicationCategoryType': 'public.app-category.music',
     },
 )

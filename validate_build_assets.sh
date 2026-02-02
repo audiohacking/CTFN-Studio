@@ -1,12 +1,12 @@
 #!/bin/bash
 # ---------------------------------------------------------------------------
-#  HeartMuLa Studio - Build Asset Validation Script
+#  CTFN Studio - Build Asset Validation Script
 #  Validates that all required files and dependencies are in place
 #  Can run on Linux to check before macOS build
 # ---------------------------------------------------------------------------
 
 echo "=========================================="
-echo "HeartMuLa Studio - Build Validation"
+echo "CTFN Studio - Build Validation"
 echo "=========================================="
 echo ""
 
@@ -49,8 +49,8 @@ check_file "build/macos/generate_icon.sh" || ((ERRORS++))
 check_file "build/macos/codesign.sh" || ((ERRORS++))
 check_file ".github/DMG_README.txt" || ((ERRORS++))
 
-# Icon source
-check_file "frontend/public/heartmula-icon.svg" || ((ERRORS++))
+# Icon source (PNG used for CTFN Studio .icns)
+check_file "frontend/public/ctfn-icon.png" || ((ERRORS++))
 
 # PyInstaller spec
 check_file "HeartMuLa.spec" || ((ERRORS++))
@@ -133,7 +133,7 @@ else
     ((ERRORS++))
 fi
 
-if grep -q "build/macos/HeartMuLa.icns" HeartMuLa.spec; then
+if grep -q "build/macos/CTFNStudio.icns" HeartMuLa.spec; then
     echo -e "${GREEN}✓${NC} HeartMuLa.spec references icon file"
 else
     echo -e "${RED}✗${NC} HeartMuLa.spec missing icon reference"

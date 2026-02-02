@@ -1,13 +1,13 @@
 ═══════════════════════════════════════════════════════════
-    HeartMuLa Studio for macOS
+    CTFN Studio for macOS
 ═══════════════════════════════════════════════════════════
 
-Thank you for downloading HeartMuLa Studio!
+Thank you for downloading CTFN Studio!
 
 🎵 INSTALLATION
 ───────────────────────────────────────────────────────────
 
-1. Drag "HeartMuLa.app" to the "Applications" folder
+1. Drag "CTFN Studio.app" to the "Applications" folder
 2. Double-click the app to launch
 3. On first launch:
    - macOS may show a security warning
@@ -42,7 +42,7 @@ Logs are stored in:
 🎸 METAL GPU ACCELERATION
 ───────────────────────────────────────────────────────────
 
-HeartMuLa Studio is optimized for Apple Metal GPUs:
+CTFN Studio is optimized for Apple Metal GPUs:
 • Apple Silicon: Native acceleration with Metal Performance Shaders
 • Intel Macs: Metal support for compatible GPUs
 
@@ -55,7 +55,7 @@ HeartMuLa Studio is optimized for Apple Metal GPUs:
 ✓ Reference audio style transfer (experimental)
 ✓ AI-generated lyrics
 ✓ Queue system for multiple generations
-✓ Professional Spotify-inspired interface
+✓ Modern interface
 
 📚 DOCUMENTATION
 ───────────────────────────────────────────────────────────
@@ -90,7 +90,7 @@ Still having issues?
 📝 LICENSE
 ───────────────────────────────────────────────────────────
 
-HeartMuLa Studio is open source (MIT License)
+CTFN Studio is open source (MIT License)
 Built on HeartLib: https://github.com/HeartMuLa/heartlib
 
 ═══════════════════════════════════════════════════════════

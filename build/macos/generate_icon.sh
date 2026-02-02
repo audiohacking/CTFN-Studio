@@ -1,61 +1,71 @@
 #!/bin/bash
-# Script to generate HeartMuLa.icns from SVG icon
-# This will be run during the GitHub Actions build process
+# Generate CTFNStudio.icns from PNG logo for macOS app bundle
+# Preserves transparency (alpha channel) from the source PNG.
 
 set -e
 
-SVG_FILE="frontend/public/heartmula-icon.svg"
-ICONSET_DIR="build/macos/HeartMuLa.iconset"
-OUTPUT_ICNS="build/macos/HeartMuLa.icns"
+PNG_FILE="frontend/public/ctfn-icon.png"
+ICONSET_DIR="build/macos/CTFNStudio.iconset"
+OUTPUT_ICNS="build/macos/CTFNStudio.icns"
 
-# Check if SVG file exists
-if [ ! -f "$SVG_FILE" ]; then
-    echo "Error: SVG icon file not found at $SVG_FILE"
+if [ ! -f "$PNG_FILE" ]; then
+    echo "Error: Logo PNG not found at $PNG_FILE"
     exit 1
 fi
 
-# Check if imagemagick (convert) and iconutil are available
-if ! command -v rsvg-convert &> /dev/null && ! command -v convert &> /dev/null; then
-    echo "Error: Neither rsvg-convert nor ImageMagick convert found"
-    echo "Install with: brew install librsvg imagemagick"
+# Prefer ImageMagick 7 (magick) or 6 (convert); fallback to sips
+USE_IM=
+if command -v magick &> /dev/null; then
+    USE_IM=magick
+elif command -v convert &> /dev/null; then
+    USE_IM=convert
+fi
+
+if [ -z "$USE_IM" ] && ! command -v sips &> /dev/null; then
+    echo "Error: ImageMagick (magick/convert) or sips required. Install with: brew install imagemagick"
     exit 1
 fi
 
-# Create iconset directory
 rm -rf "$ICONSET_DIR"
 mkdir -p "$ICONSET_DIR"
 
-echo "Generating icon sizes from SVG..."
+echo "Generating icon sizes from PNG (preserving/adding transparency)..."
 
-# Generate all required icon sizes
-# macOS requires specific sizes for .icns files
-sizes=(16 32 128 256 512)
-
-for size in "${sizes[@]}"; do
-    # Standard resolution
-    echo "  Generating ${size}x${size}..."
-    if command -v rsvg-convert &> /dev/null; then
-        rsvg-convert -w $size -h $size "$SVG_FILE" -o "$ICONSET_DIR/icon_${size}x${size}.png"
+# If source has no alpha (e.g. black background), make black transparent. Preserve alpha if present.
+# -fuzz 2% only affects near-black so logo colors (yellow, orange, red, etc.) are unchanged
+if [ -n "$USE_IM" ]; then
+    if [ "$USE_IM" = "magick" ]; then
+        TRANS_OPTS="-fuzz 2% -transparent black -background none -alpha set -alpha on"
     else
-        convert -background none -resize ${size}x${size} "$SVG_FILE" "$ICONSET_DIR/icon_${size}x${size}.png"
+        TRANS_OPTS="-fuzz 2% -transparent black -background none -alpha set -alpha on"
     fi
-    
-    # Retina resolution (@2x)
+else
+    TRANS_OPTS=""
+fi
+
+sizes=(16 32 128 256 512)
+for size in "${sizes[@]}"; do
+    echo "  Generating ${size}x${size}..."
     double=$((size * 2))
-    echo "  Generating ${size}x${size}@2x (${double}x${double})..."
-    if command -v rsvg-convert &> /dev/null; then
-        rsvg-convert -w $double -h $double "$SVG_FILE" -o "$ICONSET_DIR/icon_${size}x${size}@2x.png"
+    if [ -n "$USE_IM" ]; then
+        # Make black transparent, then resize; PNG32 keeps alpha in output
+        if [ "$USE_IM" = "magick" ]; then
+            magick "$PNG_FILE" $TRANS_OPTS -resize ${size}x${size} "PNG32:$ICONSET_DIR/icon_${size}x${size}.png"
+            magick "$PNG_FILE" $TRANS_OPTS -resize ${double}x${double} "PNG32:$ICONSET_DIR/icon_${size}x${size}@2x.png"
+        else
+            convert "$PNG_FILE" $TRANS_OPTS -resize ${size}x${size} "PNG32:$ICONSET_DIR/icon_${size}x${size}.png"
+            convert "$PNG_FILE" $TRANS_OPTS -resize ${double}x${double} "PNG32:$ICONSET_DIR/icon_${size}x${size}@2x.png"
+        fi
     else
-        convert -background none -resize ${double}x${double} "$SVG_FILE" "$ICONSET_DIR/icon_${size}x${size}@2x.png"
+        sips -z $size $size "$PNG_FILE" --out "$ICONSET_DIR/icon_${size}x${size}.png"
+        sips -z $double $double "$PNG_FILE" --out "$ICONSET_DIR/icon_${size}x${size}@2x.png"
     fi
 done
 
-# Convert iconset to icns
 echo "Creating .icns file..."
 iconutil -c icns "$ICONSET_DIR" -o "$OUTPUT_ICNS"
 
-# Clean up
 rm -rf "$ICONSET_DIR"
 
-echo "✓ Icon created: $OUTPUT_ICNS"
+echo "✓ Icon created: $OUTPUT_ICNS (with transparency)"
 ls -lh "$OUTPUT_ICNS"

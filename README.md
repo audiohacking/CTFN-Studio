@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/audiohacking/HeartMuLa-Studio/main/frontend/public/heartmula-icon.svg" alt="HeartMuLa Studio" width="120" height="120">
+  <img src="https://raw.githubusercontent.com/audiohacking/HeartMuLa-Studio/main/frontend/public/ctfn-icon.png" alt="CTFN Studio" width="120" height="120">
 </p>
 
-<h1 align="center">HeartMuLa Studio</h1>
+<h1 align="center">CTFN Studio</h1>
 
 <p align="center">
   <strong>Apple Silicon / MPS fork — AI music generation studio for <a href="https://github.com/HeartMuLa/heartlib">HeartLib</a>, optimized for Apple Metal (M-Series &amp; Intel Macs)</strong>
@@ -29,7 +29,7 @@
 
 ## About this fork
 
-This repository is a **fork of HeartMuLa Studio** focused on **Apple MPS (Metal Performance Shaders)**
+This repository is a **fork of HeartMuLa Studio** (rebranded as **CTFN Studio**) focused on **Apple MPS (Metal Performance Shaders)**
 
 - **Native macOS app** — Standalone `.app` with native window (pywebview/Cocoa)
 - **MPS-accelerated inference** — HeartMuLa and HeartCodec run on Metal where supported
@@ -43,7 +43,7 @@ For CUDA, Linux, or Windows setups, see the upstream project.
 ## Demo
 
 <p align="center">
-  <img src="preview.gif" alt="HeartMuLa Studio Preview" width="100%">
+  <img src="preview.gif" alt="CTFN Studio Preview" width="100%">
 </p>
 
 ---
@@ -119,11 +119,11 @@ Models are **auto-downloaded** from Hugging Face on first run (~5GB): HeartMuLa,
 
 ### macOS App (recommended)
 
-1. Download the latest **HeartMuLa-macOS.dmg** (or `.zip`) from [Releases](https://github.com/audiohacking/HeartMuLa-Studio/releases).
-2. Open the DMG and drag **HeartMuLa.app** to Applications.
+1. Download the latest **CTFNStudio-macOS.dmg** (or `.zip`) from [Releases](https://github.com/audiohacking/HeartMuLa-Studio/releases).
+2. Open the DMG and drag **CTFN Studio.app** to Applications.
 3. Double-click to launch. If macOS blocks it, use **Right-click → Open**, or run:
    ```bash
-   xattr -cr /Applications/HeartMuLa.app
+   xattr -cr /Applications/CTFNStudio.app
    ```
 
 **Data is stored in your user Library**, not inside the app:
@@ -240,7 +240,7 @@ OLLAMA_HOST=http://localhost:11434    # Local LLM
 | Frontend can’t connect | Ensure backend is running on port 8000 |
 | LLM not working | Run Ollama locally or set OpenRouter API key in `backend/.env` |
 | Slow or high memory | Try `HEARTMULA_4BIT=true` or `HEARTMULA_SEQUENTIAL_OFFLOAD=true` |
-| macOS app won’t open | Use Right-click → Open, or `xattr -cr /Applications/HeartMuLa.app` |
+| macOS app won’t open | Use Right-click → Open, or `xattr -cr /Applications/CTFNStudio.app` |
 
 ---
 
@@ -250,7 +250,7 @@ OLLAMA_HOST=http://localhost:11434    # Local LLM
 ./local_build.sh
 ```
 
-This installs deps, builds the frontend, generates the icon, runs PyInstaller, and signs the bundle. Output: `dist/HeartMuLa.app`. See [build/macos/README.md](build/macos/README.md) and [.github/workflows/build-macos-release.yml](.github/workflows/build-macos-release.yml) for details.
+This installs deps, builds the frontend, generates the icon, runs PyInstaller, and signs the bundle. Output: `dist/CTFNStudio.app`. See [build/macos/README.md](build/macos/README.md) and [.github/workflows/build-macos-release.yml](.github/workflows/build-macos-release.yml) for details.
 
 ---
 
@@ -259,7 +259,7 @@ This installs deps, builds the frontend, generates the icon, runs PyInstaller, a
 - **[HeartMuLa/heartlib](https://github.com/HeartMuLa/heartlib)** — Open-source AI music generation engine used by this project.
 - **WaveSurfer.js** — Audio waveform visualization.
 
-This fork is maintained for Apple MPS / Metal and is not affiliated with the upstream HeartMuLa project beyond use of HeartLib.
+CTFN Studio is maintained for Apple MPS / Metal. The underlying AI engine is [HeartMuLa/heartlib](https://github.com/HeartMuLa/heartlib); this project is not affiliated with the upstream HeartMuLa project beyond use of HeartLib.
 
 ---
 
