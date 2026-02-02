@@ -32,12 +32,9 @@
 
 This repository is a **fork of HeartMuLa Studio** (rebranded as **CTFN Studio**) focused on **Apple MPS (Metal Performance Shaders)**
 
-- **Native macOS app** — Standalone `.app` with native window (pywebview/Cocoa)
-- **MPS-accelerated inference** — HeartMuLa and HeartCodec run on Metal where supported
-- **Unified Memory friendly** — 4-bit quantization and MPS fallbacks for typical Mac RAM sizes
-- **Close window = quit** — Closing the app window exits the process and frees memory (no Dock respawn)
-
-For CUDA, Linux, or Windows setups, see the upstream project.
+- **Native macOS app** — Standalone `.app` _(pywebview/Cocoa)_
+- **MPS-accelerated inference** — HeartMuLa and HeartCodec on Metal GPUs
+- **Unified Memory friendly** — 4-bit quantization and MPS fallbacks 
 
 ---
 
